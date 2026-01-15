@@ -1,4 +1,7 @@
 node_modules
+build
+dist
+.env
 echo .env >> .gitignore
 echo build/ >> .gitignore
 echo dist/ >> .gitignore
