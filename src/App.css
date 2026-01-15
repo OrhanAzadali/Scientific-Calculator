@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@theme {
+  /* ... */
+}
+
+/* Add this line to tell Tailwind to look for the "dark" class */
+@custom-variant dark (&:where(.dark, .dark *));
+
+body {
+  font-family: sans-serif;
+}

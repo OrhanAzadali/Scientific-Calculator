@@ -1,0 +1,2 @@
+*{background-color:beige;font-family:sans-serif}.App{grid-template-columns:-webkit-max-content;grid-template-columns:max-content;justify-content:center;justify-items:center}.App,form{display:grid}button,input{border-radius:5px;font-size:20px;padding:10px}input{display:block;margin-bottom:20px}button{background:#f5f5f5;border:1px solid gray;margin-right:5px}button:last-child,button:nth-last-child(2){background:tomato;color:#fff}
+/*# sourceMappingURL=main.3e5205e6.css.map*/
