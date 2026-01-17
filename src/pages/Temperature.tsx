@@ -1,5 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
-import { evaluate } from "mathjs";
+import React, { useState, useRef } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import Button from "../components/Button";
 import ErrorPage from "./ErrorPage";
@@ -33,95 +32,123 @@ const Temperature = () => {
     "PLEASE ENTER A VALID VALUE - ONLY ARITHMETICAL EXPRESSIONS ARE ALLOWED!!!",
   );
 
-  let [from, setFrom] = useState(0);
-  let [to, setTo] = useState(0);
+  let [from, setFrom] = useState("");
+  let [to, setTo] = useState("");
   let [fromMeasure, setFromMeasure] = useState("C");
-  let [toMeasure, setToMeasure] = useState("K");
+  let [toMeasure, setToMeasure] = useState("F");
   // let [disabled, setDisabled] = useState(false);
 
   let [message, setMessage] = useState({ text: "", type: "" });
 
+  // Universal conversion function - converts from any unit to any unit
+  const calcDegree = (val: string, sourceUnit: string, targetUnit: string): number => {
+    const value = parseFloat(val);
+    if (isNaN(value)) return 0;
+
+    // First convert to Celsius
+    let tempCelsius: number;
+    switch (sourceUnit) {
+      case "C":
+        tempCelsius = value;
+        break;
+      case "F":
+        tempCelsius = ((value - 32) * 5) / 9;
+        break;
+      case "K":
+        tempCelsius = value - 273.15;
+        break;
+      default:
+        tempCelsius = value;
+    }
+
+    // Then convert from Celsius to target unit
+    let convertedVal: number;
+    switch (targetUnit) {
+      case "C":
+        convertedVal = tempCelsius;
+        break;
+      case "F":
+        convertedVal = (tempCelsius * 9) / 5 + 32;
+        break;
+      case "K":
+        convertedVal = tempCelsius + 273.15;
+        break;
+      default:
+        convertedVal = tempCelsius;
+    }
+
+    return convertedVal;
+  };
+
   // Handler for focus event
   const handleSelectFrom: React.ChangeEventHandler<HTMLSelectElement> = (
-    e: React.ChangeEvent<HTMLSelectElement>,
+    e: React.ChangeEvent<HTMLSelectElement>
   ): void => {
-    setFromMeasure(
-      (val: string) =>
-        (val = selectRef.current ? selectRef.current.value : e.target.value),
-    );
+    let tempMeasure: string | null =
+      selectRef.current && selectRef.current.value !== null
+        ? selectRef.current.value
+        : null;
+
+    setFromMeasure((val: string) => (val = tempMeasure ? tempMeasure : val));
+
+    // Recalculate if there's a value in the first input
+    if (from !== "") {
+      const converted = calcDegree(from, fromMeasure, toMeasure);
+      setTo(converted.toFixed(2));
+    }
   };
+
   const handleSelectTo: React.ChangeEventHandler<HTMLSelectElement> = (
-    e: React.ChangeEvent<HTMLSelectElement>,
+    e: React.ChangeEvent<HTMLSelectElement>
   ): void => {
-    setToMeasure(
-      (val: string) =>
-        (val = selectRef2.current ? selectRef2.current.value : e.target.value),
-    );
+    let convMeasure: string | null =
+      selectRef2.current && selectRef2.current.value !== null
+        ? selectRef2.current.value
+        : null;
+    setToMeasure((val: string) => (val = convMeasure ? convMeasure : val));
+
+    // Recalculate if there's a value in the first input
+    if (from !== "") {
+      const converted = calcDegree(from, fromMeasure, toMeasure);
+      setTo(converted.toFixed(2));
+    }
   };
 
   const handleFrom: React.ChangeEventHandler<HTMLInputElement> = (
-    e: React.ChangeEvent<HTMLInputElement>,
+    e: React.ChangeEvent<HTMLInputElement>
   ): void => {
-    let tempCelcius: number;
-    // Convert input to Celsius first
-    switch (fromMeasure) {
-      case "C":
-        tempCelcius = Number(inputRef2.current && inputRef2.current.value);
-        break;
-      case "F":
-        tempCelcius =
-          ((Number(inputRef2.current && inputRef2.current.value) - 32) * 5) / 9;
-        break;
-      case "K":
-        tempCelcius =
-          Number(inputRef2.current && inputRef2.current.value) - 273.15;
-        break;
-      default:
-        Number(inputRef2.current && inputRef2.current.value);
-        return;
+    const value = e.target.value;
+    setFrom(value);
+
+    if (value === "") {
+      setTo("");
+      return;
     }
-    // inputRef.current && (inputRef.current.value = tempInCelsius);
-    setFrom((val: number) => (val = Number(tempCelcius)));
+    const converted = calcDegree(value, fromMeasure, toMeasure);
+    setTo(converted.toFixed(2));
   };
 
   const handleTo: React.ChangeEventHandler<HTMLInputElement> = (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ): void => {
-    let convertedTemp: number;
-    // Convert Celsius to target unit
-    switch (toMeasure) {
-      case "C":
-        convertedTemp = Number(inputRef.current && inputRef.current.value);
-        break;
-      case "F":
-        convertedTemp =
-          (Number(inputRef.current && inputRef.current.value) * 9) / 5 + 32;
-        break;
-      case "K":
-        convertedTemp =
-          Number(inputRef.current && inputRef.current.value) + 273.15;
-        break;
-      default:
-        Number(inputRef.current && inputRef.current.value);
-        return;
-    }
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const value = e.target.value;
+    setTo(value);
 
-    // inputRef.current && (inputRef.current.value = convertedTemp);
-    setTo((val: number) => (val = Number(convertedTemp)));
+    if (value === "") {
+      setFrom("");
+      return;
+    }
+    const converted = calcDegree(value, toMeasure, fromMeasure);
+    setFrom(converted.toFixed(2));
   };
 
   function resetResult(e: OperationEvent): void {
     e.preventDefault();
-    setFrom(0);
-    setTo(0);
+    setFrom("");
+    setTo("");
     setFromMeasure("C");
-    setToMeasure("C");
+    setToMeasure("K");
   }
-
-  useEffect(() => {
-    console.log(inputRef.current && inputRef.current.value);
-    console.log(inputRef.current && typeof inputRef.current.value);
-  }, [inputRef]);
 
   return (
     <div className="h-screen md:w-full sm:w-fit grid overflow-y-visible justify-items-center p-10 bg-linear-to-tr/decreasing from-yellow-500 via-orange-900 to-orange-500 bg-repeat bg-cover">
@@ -154,12 +181,9 @@ const Temperature = () => {
                 value={fromMeasure}
                 className="w-full bg-yellow-500 p-5 dark:bg-white/10 m-1 rounded-2xl text-1xl text-violet-950 border-2 border-blue-100 focus:border-yellow-500 outline-2 outline-offset-1 focus:placeholder:text-emerald-400 focus:bg-amber-200 focus:outline-hidden placeholder:text-blue-600 placeholder:text-0.5xl  
             placeholder:text-center focus:animate-pulse"
-                // onChange={(e) => inputRef.current.value = e.target.value}//redundant and insecure!!!
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                   handleSelectFrom(e)
                 }
-                // onSelectCapture={() => handleBlur()}
-                autoFocus
               >
                 <option id="celsius" value="C">
                   Celsius
@@ -173,25 +197,22 @@ const Temperature = () => {
               </select>
               <input
                 title="from"
+                type="number"
                 className="w-full bg-yellow-500 p-5 dark:bg-white/10 m-1 rounded-2xl text-1xl text-violet-950 border-2 border-blue-100 focus:border-yellow-500 outline-2 outline-offset-1 focus:placeholder:text-emerald-400 focus:bg-amber-200 focus:outline-hidden placeholder:text-blue-600 placeholder:text-0.5xl  
             placeholder:text-center focus:animate-pulse"
-                onChange={(e) => handleTo(e)}
+                onChange={(e) => handleFrom(e)}
                 ref={inputRef}
-                value={String(from)}
+                value={from}
               />
-
               <select
-                title="from"
+                title="to"
                 ref={selectRef2}
                 value={toMeasure}
                 className="w-full bg-yellow-500 p-5 dark:bg-white/10 m-1 rounded-2xl text-1xl text-violet-950 border-2 border-blue-100 focus:border-yellow-500 outline-2 outline-offset-1 focus:placeholder:text-emerald-400 focus:bg-amber-200 focus:outline-hidden placeholder:text-blue-600 placeholder:text-0.5xl  
             placeholder:text-center focus:animate-pulse"
-                // onChange={(e) => inputRef.current.value = e.target.value}//redundant and insecure!!!
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                   handleSelectTo(e)
                 }
-                // onSelectCapture={() => handleBlur()}
-                autoFocus
               >
                 <option id="cels" value="C">
                   Celsius
@@ -205,15 +226,20 @@ const Temperature = () => {
               </select>
               <input
                 title="to"
-                className="w-full bg-yellow-500 p-5 dark:bg-white/10 m-1 rounded-2xl text-1xl text-violet-950 border-2 border-blue-100 focus:border-yellow-500 outline-2 outline-offset-1 focus:placeholder:text-emerald-400 focus:bg-amber-200 focus:outline-hidden placeholder:text-blue-600 placeholder:text-0.5xl  
-            placeholder:text-center focus:animate-pulse"
-                onChange={(e) => handleFrom(e)}
+                type="number"
+                className="w-full bg-yellow-500 p-5 dark:bg-white/10 m-1 rounded-2xl text-1xl text-violet-950 border-2 border-blue-100 focus:border-yellow-500 outline-2 outline-offset-1 focus:placeholder:text-emerald-400 focus:bg-amber-200 focus:outline-hidden placeholder:text-blue-600 placeholder:text-0.5xl placeholder:text-center focus:animate-pulse"
+                onChange={(e) => handleTo(e)}
                 ref={inputRef2}
-                value={String(to)}
+                value={to}
               />
             </div>
 
-            <button type="button" onClick={(e) => resetResult(e)} className="md:w-full sm:w-fit h-20 border-2 border-double border-b-green-950 bg-blue-700 dark:bg-white/10 rounded-2xl font-red-500 hover:border-red-600 hover:bg-amber-100 hover:text-red-600 text-glow text-shadow-glow shadow-glow-lg m-1 active:bg-red-700 active:text-white active:animate-pulse active:font-bold">
+            <button
+              type="button"
+              onClick={(e) => resetResult(e)}
+              className="md:w-full sm:w-fit h-20 border-2 border-double border-b-green-950 bg-blue-700 dark:bg-white/10 rounded-2xl font-red-500 hover:border-red-600 hover:bg-amber-100 hover:text-red-600 text-glow text-shadow-glow shadow-glow-lg m-1 active:bg-red-700 active:text-white active:animate-pulse active:font-bold"
+            >
+
               RESET
             </button>
           </div>
