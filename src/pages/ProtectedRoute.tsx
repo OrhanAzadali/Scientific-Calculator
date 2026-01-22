@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom';
-import {JSX} from 'react'
+import { JSX } from 'react'
 
 export default function ProtectedRoute({ children }: { children: JSX.Element }) {
   const isAuth = false; // replace with real auth
@@ -8,3 +8,5 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
     ? children
     : <Navigate to={'/login'} replace />;
 }
+
+

@@ -1,7 +1,8 @@
 import React, { useState, useRef } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import Button from "../components/Button";
 import ErrorPage from "./ErrorPage";
+import { re } from "mathjs";
+import { data } from "react-router-dom";
 //
 interface Error {
   name: string;
@@ -22,28 +23,16 @@ interface FocusEvent {
 interface OperationEvent {
   preventDefault: () => void;
 }
-
 const Temperature = () => {
-  let selectRef = useRef<HTMLSelectElement | null>(null);
-  let selectRef2 = useRef<HTMLSelectElement | null>(null);
-  let inputRef = useRef<HTMLInputElement | null>(null);
-  let inputRef2 = useRef<HTMLInputElement | null>(null);
-  const typeError = new Error(
-    "PLEASE ENTER A VALID VALUE - ONLY ARITHMETICAL EXPRESSIONS ARE ALLOWED!!!",
-  );
-
-  let [from, setFrom] = useState("");
-  let [to, setTo] = useState("");
+  let [from, setFrom] = useState(0.00);
+  let [to, setTo] = useState(32.00);
   let [fromMeasure, setFromMeasure] = useState("C");
   let [toMeasure, setToMeasure] = useState("F");
-  // let [disabled, setDisabled] = useState(false);
-
-  let [message, setMessage] = useState({ text: "", type: "" });
 
   // Universal conversion function - converts from any unit to any unit
-  const calcDegree = (val: string, sourceUnit: string, targetUnit: string): number => {
-    const value = parseFloat(val);
-    if (isNaN(value)) return 0;
+  const calcDegree = (value: number, sourceUnit: string, targetUnit: string): number => {
+    // const value = parseFloat(val);
+    if (isNaN(value)) return 0.00;
 
     // First convert to Celsius
     let tempCelsius: number;
@@ -62,92 +51,76 @@ const Temperature = () => {
     }
 
     // Then convert from Celsius to target unit
-    let convertedVal: number;
     switch (targetUnit) {
       case "C":
-        convertedVal = tempCelsius;
+        tempCelsius = tempCelsius;
         break;
       case "F":
-        convertedVal = (tempCelsius * 9) / 5 + 32;
+        tempCelsius = (tempCelsius * 9) / 5 + 32;
         break;
       case "K":
-        convertedVal = tempCelsius + 273.15;
+        tempCelsius = tempCelsius + 273.15;
         break;
       default:
-        convertedVal = tempCelsius;
+        tempCelsius = tempCelsius;
     }
-
-    return convertedVal;
+    return tempCelsius === 0 ? 0.00 : parseFloat(tempCelsius.toFixed(2));
   };
 
   // Handler for focus event
-  const handleSelectFrom: React.ChangeEventHandler<HTMLSelectElement> = (
-    e: React.ChangeEvent<HTMLSelectElement>
-  ): void => {
-    let tempMeasure: string | null =
-      selectRef.current && selectRef.current.value !== null
-        ? selectRef.current.value
-        : null;
-
-    setFromMeasure((val: string) => (val = tempMeasure ? tempMeasure : val));
-
+  const handleSelectFrom: React.ChangeEventHandler<HTMLSelectElement> = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFromMeasure((val: string) => (val = e.target.value ? e.target.value : val));
     // Recalculate if there's a value in the first input
-    if (from !== "") {
+    if (String(from).length > 0) {
       const converted = calcDegree(from, fromMeasure, toMeasure);
-      setTo(converted.toFixed(2));
+      setTo(parseFloat(converted.toFixed(2)));
+    }
+    else {
+      setTo(parseFloat("0"));
     }
   };
 
-  const handleSelectTo: React.ChangeEventHandler<HTMLSelectElement> = (
-    e: React.ChangeEvent<HTMLSelectElement>
-  ): void => {
-    let convMeasure: string | null =
-      selectRef2.current && selectRef2.current.value !== null
-        ? selectRef2.current.value
-        : null;
-    setToMeasure((val: string) => (val = convMeasure ? convMeasure : val));
-
+  const handleSelectTo: React.ChangeEventHandler<HTMLSelectElement> = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setToMeasure((val: string) => (val = e.target.value ? e.target.value : val));
     // Recalculate if there's a value in the first input
-    if (from !== "") {
+    if (String(from).length > 0) {
       const converted = calcDegree(from, fromMeasure, toMeasure);
-      setTo(converted.toFixed(2));
+      setTo(parseFloat(converted.toFixed(2)));
+    }
+    else {
+      setTo(parseFloat("0"));
     }
   };
 
-  const handleFrom: React.ChangeEventHandler<HTMLInputElement> = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ): void => {
-    const value = e.target.value;
+  const handleFrom: React.ChangeEventHandler<HTMLInputElement> = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value ? parseFloat(e.target.value) : 0;
     setFrom(value);
-
-    if (value === "") {
-      setTo("");
-      return;
+    if (isNaN(value) && String(value).length === 0) {
+      setTo(parseFloat("0"));
+    } else {
+      const converted = calcDegree(value, fromMeasure, toMeasure);
+      setTo(parseFloat(converted.toFixed(2)));
     }
-    const converted = calcDegree(value, fromMeasure, toMeasure);
-    setTo(converted.toFixed(2));
   };
 
-  const handleTo: React.ChangeEventHandler<HTMLInputElement> = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const value = e.target.value;
-    setTo(value);
 
-    if (value === "") {
-      setFrom("");
-      return;
+  const handleTo: React.ChangeEventHandler<HTMLInputElement> = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value ? parseFloat(e.target.value) : 0;
+    setTo(value);
+    if (isNaN(value) && String(value).length === 0) {
+      setFrom(parseFloat("0"));
+    } else {
+      const converted = calcDegree(value, toMeasure, fromMeasure);
+      setFrom(parseFloat(converted.toFixed(2)));
     }
-    const converted = calcDegree(value, toMeasure, fromMeasure);
-    setFrom(converted.toFixed(2));
   };
 
   function resetResult(e: OperationEvent): void {
     e.preventDefault();
-    setFrom("");
-    setTo("");
     setFromMeasure("C");
-    setToMeasure("K");
+    setToMeasure("F");
+    setFrom(parseFloat("0"));
+    setTo(parseFloat("32"));
   }
 
   return (
@@ -162,22 +135,9 @@ const Temperature = () => {
 
           <div className="md: w-full sm:w-fit text-white grid grid-cols-2 justify-center items-center align-middle mx-35 text-shadow-glow shadow-glow-lg gap-10">
             <div className="flex flex-col justify-center items-center">
-              {message && (
-                <div className="text-1xl text-center text-shadow-glow shadow-glow-lg animate-pulse">
-                  {message.text}
-
-                  {message.type.length > 0 && (
-                    <div className="text-yellow-300 text-[0.7rem] text-center">
-                      {message?.type} must consist of the integers, floating
-                      numbers and arithmetical operators
-                    </div>
-                  )}
-                </div>
-              )}
 
               <select
                 title="from"
-                ref={selectRef}
                 value={fromMeasure}
                 className="w-full bg-yellow-500 p-5 dark:bg-white/10 m-1 rounded-2xl text-1xl text-violet-950 border-2 border-blue-100 focus:border-yellow-500 outline-2 outline-offset-1 focus:placeholder:text-emerald-400 focus:bg-amber-200 focus:outline-hidden placeholder:text-blue-600 placeholder:text-0.5xl  
             placeholder:text-center focus:animate-pulse"
@@ -200,13 +160,12 @@ const Temperature = () => {
                 type="number"
                 className="w-full bg-yellow-500 p-5 dark:bg-white/10 m-1 rounded-2xl text-1xl text-violet-950 border-2 border-blue-100 focus:border-yellow-500 outline-2 outline-offset-1 focus:placeholder:text-emerald-400 focus:bg-amber-200 focus:outline-hidden placeholder:text-blue-600 placeholder:text-0.5xl  
             placeholder:text-center focus:animate-pulse"
+                pattern="/(\d+(\.\d{1,2}))?/"
                 onChange={(e) => handleFrom(e)}
-                ref={inputRef}
-                value={from}
+                value={from.toFixed(2) || 0.00}
               />
               <select
                 title="to"
-                ref={selectRef2}
                 value={toMeasure}
                 className="w-full bg-yellow-500 p-5 dark:bg-white/10 m-1 rounded-2xl text-1xl text-violet-950 border-2 border-blue-100 focus:border-yellow-500 outline-2 outline-offset-1 focus:placeholder:text-emerald-400 focus:bg-amber-200 focus:outline-hidden placeholder:text-blue-600 placeholder:text-0.5xl  
             placeholder:text-center focus:animate-pulse"
@@ -227,10 +186,10 @@ const Temperature = () => {
               <input
                 title="to"
                 type="number"
+                pattern="/\d+(\.\d{1,2})?/"
                 className="w-full bg-yellow-500 p-5 dark:bg-white/10 m-1 rounded-2xl text-1xl text-violet-950 border-2 border-blue-100 focus:border-yellow-500 outline-2 outline-offset-1 focus:placeholder:text-emerald-400 focus:bg-amber-200 focus:outline-hidden placeholder:text-blue-600 placeholder:text-0.5xl placeholder:text-center focus:animate-pulse"
                 onChange={(e) => handleTo(e)}
-                ref={inputRef2}
-                value={to}
+                value={to.toFixed(2) || 0.00}
               />
             </div>
 

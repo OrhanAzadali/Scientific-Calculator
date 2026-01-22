@@ -2,6 +2,7 @@
   "name": "calculator",
   "version": "0.1.0",
   "dependencies": {
+    "@everapi/freecurrencyapi-js": "^1.0.1",
     "@tailwindcss/vite": "^4.1.18",
     "mathjs": "^15.1.0",
     "react": "^18.2.0",

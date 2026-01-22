@@ -7,281 +7,323 @@ import { ErrorBoundary } from "react-error-boundary";
 import Button from '../components/Button';
 import ErrorPage from "./ErrorPage";
 import { evaluate, cot, acot, acoth, factorial } from "mathjs";
-interface FocusEvent {
-  target: {
-    value: string;
-    name: string;
-    type: string;
-    placeholder: string;
-    id: string;
-  };
-}
 
-interface OperationEvent {
-  preventDefault: () => void;
-}
+type InputEvent = React.ChangeEvent<HTMLInputElement>;
+// interface InputEvent extends React.ChangeEvent<HTMLInputElement> {
+// preventDefault: () => void;
+//// target: {
+////   value: string;
+////   name: string;
+////   type: string;
+////   placeholder: string;
+////   id: string;
+// //};
+// }
+
+type ClickOperationEvent = React.MouseEvent<HTMLButtonElement>;
+// interface ClickOperationEvent extends React.ChangeEvent<HTMLButtonElement> {
+//   preventDefault: () => void;
+// }
+
+// interface DeletingEvent {
+//   preventDefault: () => void;
+//   target: {
+//     value: string;
+//   }
+// }
 
 const ScientificCalculator = () => {
-  const inputReg = /^[0-9e%^*+-/\.()=\\s\,]+$/;
+  const inputReg = /^[0-9e%^*+-/\.()=\,]+$/;
   const inputRef = useRef<HTMLInputElement | null>(null);
   const typeError = new Error('PLEASE ENTER A VALID VALUE - ONLY ARITHMETICAL EXPRESSIONS ARE ALLOWED!!!');
 
+  useEffect(() => {
+    inputRef.current && inputRef.current.focus
+  });
+
+  let [flag, setFlag] = useState(true);
+  let [currentValue, setCurrentValue] = useState("");
   let [result, setResult] = useState(0);
   let [disabled, setDisabled] = useState(false);
   let [message, setMessage] = useState({ text: '', type: '' });
   let [prevRes, setPrevResult] = useState<number[]>([]);
-
   // Handler for focus event
-  const handleFocus = (e: FocusEvent): void => {
+  const handleFocus = (e: InputEvent): void => {
+    e.preventDefault();
     setMessage({ text: 'Consider that only arithmetical expressions allowed', type: e.target.name });
   };
 
   // Handler for blur event (optional)
-  const handleBlur = (): void => {
+  const handleBlur = (e: InputEvent): void => {
+    e.preventDefault();
     setMessage({ text: 'Please enter the arithmetical expression to calculate', type: '' });
   };
-  // Save previous result:
-  const savePreviousResult = (e: OperationEvent): void => {
+
+  const handleCurrentValue = (e: InputEvent): void => {
     e.preventDefault();
-    result !== 0 && setPrevResult && setPrevResult((prevRes: number[]) => prevRes.length < 5 ? prevRes = [...prevRes, result] : prevRes = [...prevRes.slice(1), result])
+
+    let Pi = /[π]|(PI)/gi;
+
+    let newVal = e.target.value.match(Pi)?.map(l => e.target.value.replace(l, String(Math.PI))).join('') ?? e.target.value;
+
+    setCurrentValue(val => val = newVal ? newVal : e.target.value);
   };
 
-  const deleting = (e: OperationEvent): void => {
+  // Save previous result:
+  const savePreviousResult = (e: ClickOperationEvent): void => {
     e.preventDefault();
-    if (inputRef.current && inputRef.current.value.length > 0) {
 
-      inputRef.current.value = inputRef.current.value.slice(0, -1);
+    setPrevResult && setPrevResult((prevRes: number[]) => prevRes.length < 5 ? prevRes = (result === 0 && flag ? [...prevRes] : [...prevRes, result]) : prevRes = [...prevRes.slice(1), result]);
+    setTimeout(() => setFlag(false), 100);
+  };
+
+  const deleting = (e: ClickOperationEvent): void => {
+    e.preventDefault();
+    if (currentValue.length > 0) {
+      setCurrentValue(prev => prev = prev.slice(0, -1));
     }
-    if (inputRef.current && inputRef.current.value.length === 0) {
+    if (currentValue.length <= 1) {
       setDisabled(true);
-
       setTimeout(() => setDisabled(false), 1100);
     }
+  };
 
-  }
-  useEffect(() => {
-    console.log(inputRef.current && inputRef.current.value)
-    console.log(inputRef.current && typeof inputRef.current.value)
-  }, [inputRef]);
-
-  let val = (v: HTMLInputElement) => {
+  let evaluated = (v: string) => {
     let res;
-    if (v.value.trim() !== '') { res = evaluate(v.value.trim()); }
-    if (!v || v.value.trim() === '' || !v.value) {
-      v.value = "0";
+    if (v.trim() !== '') { res = evaluate(v.trim()); }
+    if (!v || v.trim() === '') {
+      v = "0";
       res = 0;
     };
     return res
   }
 
-  // (!inputRef.current || inputRef.current.value.trim() === '' || !inputRef.current.value ) ? (inputRef.current ? inputRef.current.value = "0" : null): operation(e) 
   // Convert degrees - (user entered value) - to radians
-  let radians: () => number = () => inputRef.current! && (val(inputRef.current) * (Math.PI / 180));
-  // NEVER use direct storing, use callbacks - OTHERWISE YOU SIMPLY STORE THE PREVIOUS REF VALUE AND THEN USE IT INSTEAD OF THE CURRENT REF VALUE WHICH LEAD TO WRONG RESULTS - ONLY CALLBACKS (THIS WAY) OR USE THE VALUE OF THIS VARIABLE DIRECTLY IN EACH FUNCTION BELOW
+  // let radians: () => number = () => (evaluated(currentValue) * (Math.PI / 180));
+
   const calcOperations = [
-    function calculate(e: OperationEvent): void {
+    function calculate(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult((result) => result = inputRef.current && val(inputRef.current));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult((result) => result = evaluated(currentValue));
     },
 
-    function plus(e: OperationEvent): void {
+    function plus(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult((result) => result += inputRef.current && val(inputRef.current))
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult((result) => result += evaluated(currentValue))
     },
 
-    function minus(e: OperationEvent): void {
+    function minus(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult((result) => result -= inputRef.current && val(inputRef.current))
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult((result) => result -= evaluated(currentValue))
     },
 
-    function times(e: OperationEvent): void {
+    function times(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult((result) => result *= inputRef.current && val(inputRef.current));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult((result) => result *= evaluated(currentValue));
     },
 
-    function divide(e: OperationEvent): void {
+    function divide(e: ClickOperationEvent): void {
       e.preventDefault();
 
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      (!inputRef.current || inputRef.current.value === '0') ?
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      (!currentValue || currentValue === '0') ?
         alert("ERROR: Cannot divide by ZERO!") :
-        setResult((result) => result /= inputRef.current && val(inputRef.current))
+        setResult((result) => result /= evaluated(currentValue))
     },
 
-    function power(e: OperationEvent): void {
+    function power(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult((result) => result = Math.pow(inputRef.current && val(inputRef.current), result));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult((result) => result = Math.pow(evaluated(currentValue), result));
     },
 
-    function exponent(e: OperationEvent): void {
+    function exponent(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult((result) => result = Math.exp(inputRef.current && val(inputRef.current)));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult((result) => result = Math.exp(evaluated(currentValue)));
     },
 
-    function ceil(e: OperationEvent): void {
+    function ceil(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult((result) => result = Math.ceil(inputRef.current && val(inputRef.current)));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult((result) => result = Math.ceil(evaluated(currentValue)));
     },
 
-    function floor(e: OperationEvent): void {
+    function floor(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult((result) => result = Math.floor(inputRef.current && val(inputRef.current)));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult((result) => result = Math.floor(evaluated(currentValue)));
     },
 
-    function round(e: OperationEvent): void {
+    function round(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult((result) => result = Math.round(inputRef.current && val(inputRef.current)));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult((result) => result = Math.round(evaluated(currentValue)));
     },
 
-    function squareRoot(e: OperationEvent): void {
+    function squareRoot(e: ClickOperationEvent): void {
       e.preventDefault();
 
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      Number(inputRef.current && inputRef.current.value) < 0 ?
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      Number(currentValue) < 0 ?
         alert("ERROR: Cannot calculate a square root of a negative number!") :
-        setResult((result) => result = Math.sqrt(inputRef.current && val(inputRef.current)));
+        setResult((result) => result = Math.sqrt(evaluated(currentValue)));
     },
 
-    function percentage(e: OperationEvent): void {
+    function percentage(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
 
-      Number(inputRef.current && inputRef.current.value) < 0 ?
+      Number(currentValue) < 0 ?
         alert("ERROR: Cannot calculate a negative percentage of a number!") :
-        setResult((result) => result = (result * (inputRef.current && val(inputRef.current)) / 100))
+        setResult((result) => result = (result * (evaluated(currentValue)) / 100))
     },
 
-    function calculateFactorial(e: OperationEvent): void {
+    function calculateFactorial(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult((result) => result = factorial(inputRef.current && val(inputRef.current)));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult((result) => result = factorial(evaluated(currentValue)));
     },
 
-    function calculateMin(e: OperationEvent): void {
+
+    function calculatePi(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && val(inputRef.current) instanceof Array) {
-        if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-        let res = inputRef.current && val(inputRef.current).map(Number);
+      setResult((result) => result = Math.PI);
+    },
+
+    function calculateMin(e: ClickOperationEvent): void {
+      e.preventDefault();
+      if (evaluated(currentValue) instanceof Array) {
+        if (!inputReg.test(currentValue.trim())) { throw typeError }
+        let res = evaluated(currentValue).map(Number);
 
         setResult((result) => result = Math.min(res));
       }
       else { alert('Enter more than 1 value') }
 
     },
-    function calculateMax(e: OperationEvent): void {
+    function calculateMax(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult((result) => result = Math.max(inputRef.current && val(inputRef.current)));
+
+      if (evaluated(currentValue) instanceof Array) {
+        if (!inputReg.test(currentValue.trim())) { throw typeError }
+        setResult((result) => result = Math.max(evaluated(currentValue)));
+      }
+      else { alert('Enter more than 1 value') }
     },
-    function calculateAbsolute(e: OperationEvent): void {
+    function calculateAbsolute(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult((result) => result = Math.abs(inputRef.current && val(inputRef.current)));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult((result) => result = Math.abs(evaluated(currentValue)));
     },
 
-    function calculateSine(e: OperationEvent): void {
+    function calculateSine(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult(result => result = Math.sin(radians()));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult(result => result = Math.sin(evaluated(currentValue)));
     },
 
-    function calculateCosine(e: OperationEvent): void {
+    function calculateCosine(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult(result => result = Math.cos(radians()));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult(result => result = Math.cos(evaluated(currentValue)));
     },
 
-    function calculateTangens(e: OperationEvent): void {
+    function calculateTangent(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult((result) => result = Math.tan(radians()));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult((result) => result = Math.tan(evaluated(currentValue)));
     },
 
-    function calculateCotangens(e: OperationEvent): void {
+    function calculateCotangent(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult((result) => result = cot(radians()));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      if ((parseFloat(currentValue) % Math.PI) === 0) { throw Error("ERROR: Cotangent is undefined for integer multiples of π (pi) - your entered value should not be a multiple of π!") }
+      setResult((result) => result = cot(evaluated(currentValue)));
     },
 
-    function calculateArchSin(e: OperationEvent): void {
+    function calculateArchSin(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult(result => result = Math.asin(radians()));
+      if (!inputReg.test(currentValue.trim()) || parseFloat(currentValue.trim()) > 1 || parseFloat(currentValue.trim()) < -1) { throw Error(`ArcSine requires a value between -1 & 1 - your entered value was: "${currentValue.trim()}". Please enter a valid value!`) }
+      setResult(result => result = Math.asin(evaluated(currentValue)));
     },
 
-    function calculateArchCos(e: OperationEvent): void {
+    function calculateArchCos(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult(result => result = Math.acos(radians()));
+      if (!inputReg.test(currentValue.trim()) || parseFloat(currentValue.trim()) > 1 || parseFloat(currentValue.trim()) < -1) {
+        throw Error(`ArcCosine requires a value between -1 & 1 - your entered value was: "${currentValue.trim()}". Please enter a valid value!`);
+      }
+      setResult(result => result = Math.acos(evaluated(currentValue)));
     },
 
-    function calculateArchTan(e: OperationEvent): void {
+    function calculateArchTan(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult((result) => result = Math.atan(radians()));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult((result) => result = Math.atan(evaluated(currentValue)));
     },
 
-    function calculateArcTan2(e: OperationEvent): void {
+    function calculateArcTan2(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult((result) => result = Math.atan2(radians(), result));
+      if (String(result).trim().length === 0 || !inputReg.test(currentValue.trim()) || currentValue.trim().length === 0) {
+        throw Error(`ArcTangent requires two arguments - only value entered is: "${currentValue.trim().length > 0 ? currentValue.trim() : result}". Please enter values for both arguments!`)
+      }
+      setResult((result) => result = Math.atan2(evaluated(currentValue), result));
     },
 
-    function calculateArchCot(e: OperationEvent): void {
+    function calculateArchCot(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult(result => result = acot(radians()));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult(result => result = acot(evaluated(currentValue)));
     },
 
-    function calculateHyperbolicArchSin(e: OperationEvent): void {
+    function calculateHyperbolicArchSin(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult(result => result = Math.asinh(radians()));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult(result => result = Math.asinh(evaluated(currentValue)));
     },
 
-    function calculateHyperbolicArchCos(e: OperationEvent): void {
+    function calculateHyperbolicArchCos(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult(result => result = Math.acosh(radians()));
+
+      if (!inputReg.test(currentValue.trim()) || parseFloat(currentValue.trim()) < 1) {
+        throw Error(`Hyperbolic ArcCosine requires a value greater than or equal to 1 - your entered value was less than 1: "${currentValue.trim()} < 1". Please enter a valid value!`)
+      }
+      setResult(result => result = Math.acosh(evaluated(currentValue)));
     },
 
-    function calculateHyperbolicArchTan(e: OperationEvent): void {
+    function calculateHyperbolicArchTan(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult(result => result = Math.atanh(radians()));
+      if (!inputReg.test(currentValue.trim()) || parseFloat(currentValue.trim()) > 1 || parseFloat(currentValue.trim()) < -1) { throw Error(`Hyperbolic ArcTangent requires a value between -1 & 1 - your entered value was: "${currentValue.trim()}". Please enter a valid value!`) }
+      setResult(result => result = Math.atanh(evaluated(currentValue)));
     },
 
-    function calculateHyperbolicArchCot(e: OperationEvent): void {
+    function calculateHyperbolicArchCot(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult(result => result = acoth(radians()));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult(result => result = acoth(evaluated(currentValue)));
     },
 
-    function calculateLog(e: OperationEvent): void {
+    function calculateLog(e: ClickOperationEvent): void {
       e.preventDefault();
-      if (inputRef.current && inputRef.current.value !== null && !inputReg.test(inputRef.current.value.trim())) { throw typeError }
-      setResult(result => result = Math.log(radians()));
+      if (!inputReg.test(currentValue.trim())) { throw typeError }
+      setResult(result => result = Math.log(evaluated(currentValue)));
     },
 
-    function resetInput(e: OperationEvent): void {
+    function resetInput(e: ClickOperationEvent): void {
       e.preventDefault();
-      inputRef.current ? inputRef.current.value = '' : null
+      setCurrentValue((currentVal) => currentVal = '');
     },
 
-    function resetResult(e: OperationEvent): void {
+    function resetResult(e: ClickOperationEvent): void {
       e.preventDefault();
       setResult(0)
     },
   ];
+
   return (
     <div className="md:w-full sm:w-fit grid h-full overflow-y-visible justify-items-center p-10 bg-linear-to-tr/decreasing from-yellow-500 via-orange-900 to-orange-500 bg-repeat bg-cover">
       <ErrorBoundary fallback={<ErrorPage />} >
@@ -290,11 +332,11 @@ const ScientificCalculator = () => {
             <h1 className="md:w-fit sm:w-100 text-cyan-200 text-shadow-glow shadow-glow-lg animate-pulse">Scientific Working Calculator</h1>
           </div>
           <ul className="flex md:w-fit sm:w-fit dark:bg-white/10 m-1 text-glow text-shadow-glow shadow-glow-lg gap-3" >
-            {prevRes.map((e, i) => <li key={i} onClick={(e: React.MouseEvent<HTMLLIElement>): void => { if (inputRef.current) { inputRef.current.value = (e.target as HTMLElement).textContent } }} className='text-white bg-yellow-400 font-medium active:bg-red-600 active:animate-pulse border p-1 rounded-2xl border-amber-300'
-              // onDrag={(e: OperationEvent) => {inputRef.current ? inputRef.current.value : null}} 
+            {prevRes.map((e, i) => <li key={i} onClick={(e: React.MouseEvent<HTMLLIElement>): void => { if ((e.target as HTMLElement).textContent) { setCurrentValue(prev => prev = (e.target as HTMLElement).textContent) } }} className='text-white bg-yellow-400 font-medium active:bg-red-600 active:animate-pulse border p-1 rounded-2xl border-amber-300'
+              // onDrag={(e: ClickOperationEvent) => {inputRef.current ? inputRef.current.value : null}} 
               draggable>{e}</li>)}
           </ul>
-          <div className="flex justify-center lg:w-full sm:text-2xl h-50 p-10 m-5 rounded-2xl md:text-7xl font-bold bg-amber-300 outline-12 outline-emerald-300 outline-offset-10 outline-solid border-4 border-cyan-200 text-shadow-blue-700" onClick={(e: OperationEvent) => { inputRef.current ? inputRef.current.value = String(result) : null }}>
+          <div className="flex justify-center lg:w-full sm:text-2xl h-50 p-10 m-5 rounded-2xl md:text-7xl font-bold bg-amber-300 outline-12 outline-emerald-300 outline-offset-10 outline-solid border-4 border-cyan-200 text-shadow-blue-700" onClick={(e: React.MouseEvent<HTMLDivElement>) => { if ((e.target as HTMLElement).textContent) { setCurrentValue(prev => prev = (e.target as HTMLElement).textContent) } }}>
 
             <p className="dark:bg-white/10 m-1 text-glow text-shadow-glow shadow-glow-lg w-full text-center">
               {result}
@@ -315,7 +357,7 @@ const ScientificCalculator = () => {
                 </div>}
 
               <input
-                pattern={'[0-9e%^*+-/\.()=\\s\,]+'}
+                pattern={`${inputReg}`}
                 id='text'
                 name="text"
                 ref={inputRef}
@@ -323,10 +365,10 @@ const ScientificCalculator = () => {
                 placeholder="Type a number or any arithmetical expression"
                 className='w-full bg-yellow-500 p-5 dark:bg-white/10 m-1 rounded-2xl text-1xl text-violet-950 border-2 border-blue-100 focus:border-yellow-500 outline-2 outline-offset-1 focus:placeholder:text-emerald-400 focus:bg-amber-200 focus:outline-hidden placeholder:text-blue-600 placeholder:text-0.5xl  
             placeholder:text-center focus:animate-pulse'
-                // onChange={(e) => inputRef.current.value = e.target.value}//redundant and insecure!!!
+                onChange={(e) => handleCurrentValue(e)}//redundant and insecure!!!
                 onFocus={(e) => handleFocus(e)}
-                onBlur={() => handleBlur()}
-                autoFocus
+                onBlur={(e) => handleBlur(e)}
+                value={currentValue}
               /></div>
             <Button operationHandler={deleting} savePreviousResult={() => null} disabled={disabled} />
           </div>
@@ -344,4 +386,4 @@ const ScientificCalculator = () => {
   // (e: React.MouseEvent<HTMLButtonElement>) => {  }
 }
 
-export default ScientificCalculator; 
+export default ScientificCalculator;
